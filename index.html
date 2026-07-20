@@ -446,23 +446,36 @@
       ];
     }
 
-    async function fetchTwelveDataQuotes(symbols) {
-      if (symbols.length === 0) {
-        return [];
+    async function fetchTwelveDataQuote(symbol) {
+    const url = new URL("https://api.twelvedata.com/quote");
+    url.searchParams.set("symbol", symbol);
+    url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
+
+    const response = await fetch(url);
+    const data = await response.json();
+
+    if (!response.ok || data.status === "error") {
+      throw new Error(
+        `${symbol}: ${data.message || `HTTP ${response.status}`}`
+      );
+    }
+
+    const price = Number(data.close);
+
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new Error(`${symbol}: invalid NAV`);
+    }
+
+    return [
+      symbol,
+      {
+        price,
+        change: Number(data.change),
+        percentChange: Number(data.percent_change),
+        provider: "Twelve Data"
       }
-
-      const url = new URL("https://api.twelvedata.com/quote");
-      url.searchParams.set("symbol", symbols.join(","));
-      url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
-
-      const response = await fetch(url);
-      const data = await response.json();
-
-      if (!response.ok || data.status === "error") {
-        throw new Error(
-          `Twelve Data: ${data.message || `HTTP ${response.status}`}`
-        );
-      }
+    ];
+  }
 
       const results = [];
       const errors = [];
@@ -536,14 +549,26 @@
       const errors = [];
       let loadedCount = 0;
 
-      const [finnhubResults, twelveDataResult] = await Promise.all([
-        Promise.allSettled(
-          finnhubSymbols.map((symbol) => fetchFinnhubQuote(symbol))
-        ),
-        fetchTwelveDataQuotes(twelveDataSymbols)
-          .then((value) => ({ status: "fulfilled", value }))
-          .catch((reason) => ({ status: "rejected", reason }))
-      ]);
+            const [finnhubResults, twelveDataResults] = await Promise.all([
+          Promise.allSettled(
+            finnhubSymbols.map(fetchFinnhubQuote)
+          ),
+          Promise.allSettled(
+            twelveDataSymbols.map(fetchTwelveDataQuote)
+          )
+        ]);
+
+        for (const result of twelveDataResults) {
+          if (result.status === "fulfilled") {
+            const [symbol, quote] = result.value;
+            quoteMap[symbol] = quote;
+            loadedCount += 1;
+          } else {
+            errors.push(
+              result.reason?.message || "Unknown Twelve Data error"
+            );
+          }
+        }
 
       for (const result of finnhubResults) {
         if (result.status === "fulfilled") {
