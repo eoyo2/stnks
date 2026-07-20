@@ -232,10 +232,10 @@
 
     // Edit shares and costBasis values directly in this object.
     const portfolio = {
-      SPY:  { shares: 73, costBasis: 36925.00 },
-      RSP:  { shares: 392,  costBasis: 80283.00 },
-      VXUS : { shares: 90, costBasis: 7500.00 },
-    };
+  SPY:  { shares: 73,  costBasis: 505.82 },
+  RSP:  { shares: 392, costBasis: 204.80 },
+  VXUS: { shares: 90,  costBasis: 83.33 }
+};
 
     const REFRESH_INTERVAL_MS = 300_000;
     const symbols = Object.keys(portfolio);
@@ -293,15 +293,19 @@
 
         const price = Number.parseFloat(quote?.close);
         const percentChange = Number.parseFloat(quote?.percent_change);
+        const dailyChangePerShare = Number.parseFloat(quote?.change);
+        
         const positionCost = holding.shares * holding.costBasis;
         const marketValue = holding.shares * price;
-        const dollarImpact = holding.shares * price * (percentChange / 100);
-
+        
+        const dollarImpact = holding.shares * dailyChangePerShare;
+        const unrealizedPL = marketValue - positionCost;
+        
         totalCost += positionCost;
-
+        
         if (Number.isFinite(marketValue)) {
           totalMarketValue += marketValue;
-          totalImpact += dollarImpact;
+          totalImpact += unrealizedPL;
         }
 
         return `
