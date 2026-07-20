@@ -155,7 +155,7 @@
     <header>
       <div>
         <h1>Stock Portfolio Dashboard</h1>
-        <div class="subtitle">Finnhub for ETFs · Twelve Data for mutual funds · loads on open or manual refresh</div>
+        <div class="subtitle">Finnhub quotes · loads when the page opens or when you refresh</div>
       </div>
       <div id="lastUpdated">Last updated: Never</div>
     </header>
@@ -207,37 +207,13 @@
   <script>
     "use strict";
 
-    const FINNHUB_API_KEY = "d9f696hr01qjcbq4gg50d9f696hr01qjcbq4gg5g";
-    const TWELVE_DATA_API_KEY = "6912af7844eb4b90ac11578a7f6791a6";
-
-    const FINNHUB_SYMBOLS = new Set(["SPY", "RSP", "VXUS"]);
-
-    const TWELVE_DATA_SYMBOLS = new Set([
-      "FXAIX",
-      "FSMDX",
-      "FSSNX",
-      "FSGGX",
-      "FTIHX",
-      "FXNAX"
-    ]);
+    const API_KEY = "d9f4k11r01qjcbq49o8gd9f4k11r01qjcbq49o90";
 
     // Set unknown cost bases to null. Add manualValue if Finnhub cannot quote a fund.
     const holdings = [
       { account: "Brokerage", ticker: "SPY", name: "SPDR S&P 500 ETF Trust", shares: 73, costBasisTotal: 36925 },
       { account: "Brokerage", ticker: "RSP", name: "Invesco S&P 500 Equal Weight ETF", shares: 392, costBasisTotal: 80283 },
       { account: "Brokerage", ticker: "VXUS", name: "Vanguard Total International Stock ETF", shares: 90, costBasisTotal: 7500 },
-
-      { account: "C 401(k)", ticker: "FSMDX", name: "Fidelity Mid Cap Index Fund", shares: 406, costBasisTotal: 15938 },
-      { account: "C 401(k)", ticker: "FSSNX", name: "Fidelity Small Cap Index Fund", shares: 479, costBasisTotal: 15962 },
-      { account: "C 401(k)", ticker: "FXAIX", name: "Fidelity 500 Index Fund", shares: 222, costBasisTotal: 53410 },
-      { account: "C 401(k)", ticker: "FSGGX", name: "Fidelity Global ex U.S. Index Fund", shares: 1045, costBasisTotal: 21250 },
-
-      { account: "E 401(k)", ticker: "FXAIX", name: "Fidelity 500 Index Fund", shares: 866, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FTIHX", name: "Fidelity Total International Index Fund", shares: 3359, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FSSNX", name: "Fidelity Small Cap Index Fund", shares: 1279, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FSMDX", name: "Fidelity Mid Cap Index Fund", shares: 1070, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FXNAX", name: "Fidelity U.S. Bond Index Fund", shares: 12, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "SAGIC", name: "SAGIC Bond Diversified", manual: true, manualValue: 62691, costBasisTotal: 62691 }
     ];
 
     const accountOrder = ["Brokerage", "C 401(k)", "E 401(k)"];
@@ -293,37 +269,16 @@
     function deriveRow(holding) {
       const quote = quoteMap[holding.ticker];
       const isManual = holding.manual === true;
-
-      const price = isManual
-        ? NaN
-        : validPrice(quote?.price);
-
-      const dayChange = isManual
-        ? NaN
-        : Number(quote?.change);
-
-      const dayPercent = isManual
-        ? NaN
-        : Number(quote?.percentChange);
-
+      const price = isManual ? NaN : validPrice(quote?.c);
+      const dayChange = isManual ? NaN : Number(quote?.d);
+      const dayPercent = isManual ? NaN : Number(quote?.dp);
       const marketValue = isManual
         ? Number(holding.manualValue)
-        : Number.isFinite(price)
-          ? holding.shares * price
-          : NaN;
-
+        : (Number.isFinite(price) ? holding.shares * price : NaN);
       const costBasisTotal = Number(holding.costBasisTotal);
       const hasCostBasis = Number.isFinite(costBasisTotal);
-
-      const todayGain =
-        !isManual && Number.isFinite(dayChange)
-          ? holding.shares * dayChange
-          : NaN;
-
-      const unrealized =
-        Number.isFinite(marketValue) && hasCostBasis
-          ? marketValue - costBasisTotal
-          : NaN;
+      const todayGain = !isManual && Number.isFinite(dayChange) ? holding.shares * dayChange : NaN;
+      const unrealized = Number.isFinite(marketValue) && hasCostBasis ? marketValue - costBasisTotal : NaN;
 
       return {
         ...holding,
@@ -415,73 +370,22 @@
       unrealizedNoteElement.textContent = missingMessage ? "Calculated only for holdings with cost basis" : "";
     }
 
-    async function fetchFinnhubQuote(symbol) {
+    async function fetchQuote(symbol) {
       const url = new URL("https://finnhub.io/api/v1/quote");
       url.searchParams.set("symbol", symbol);
-      url.searchParams.set("token", FINNHUB_API_KEY);
-
+      url.searchParams.set("token", API_KEY);
       const response = await fetch(url);
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(
-          `${symbol} / Finnhub: ${data.error || `HTTP ${response.status}`}`
-        );
+      if (!response.ok) throw new Error(`${symbol}: HTTP ${response.status}`);
+      const quote = await response.json();
+      if (!quote || !Number.isFinite(Number(quote.c)) || Number(quote.c) <= 0) {
+        throw new Error(`${symbol}: no quote returned`);
       }
-
-      const price = Number(data.c);
-
-      if (!Number.isFinite(price) || price <= 0) {
-        throw new Error(`${symbol} / Finnhub: no quote returned`);
-      }
-
-      return [
-        symbol,
-        {
-          price,
-          change: Number(data.d),
-          percentChange: Number(data.dp),
-          provider: "Finnhub"
-        }
-      ];
+      return [symbol, quote];
     }
-
-    async function fetchTwelveDataQuote(symbol) {
-    const url = new URL("https://api.twelvedata.com/quote");
-    url.searchParams.set("symbol", symbol);
-    url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
-
-    const response = await fetch(url);
-    const data = await response.json();
-
-    if (!response.ok || data.status === "error") {
-      throw new Error(
-        `${symbol}: ${data.message || `HTTP ${response.status}`}`
-      );
-    }
-
-    const price = Number(data.close);
-
-    if (!Number.isFinite(price) || price <= 0) {
-      throw new Error(`${symbol}: invalid NAV`);
-    }
-
-    return [
-      symbol,
-      {
-        price,
-        change: Number(data.change),
-        percentChange: Number(data.percent_change),
-        provider: "Twelve Data"
-      }
-    ];
-  }
-
 
     async function fetchQuotes() {
-      if (!FINNHUB_API_KEY || !TWELVE_DATA_API_KEY) {
-        statusElement.textContent =
-          "Add both API keys near the top of the script.";
+      if (!API_KEY) {
+        statusElement.textContent = "Add your Finnhub API key in the API_KEY constant.";
         render();
         return;
       }
@@ -489,87 +393,27 @@
       refreshButton.disabled = true;
       statusElement.textContent = "Fetching latest quotes…";
 
-      try {
-        const allLiveSymbols = [
-          ...new Set(
-            holdings
-              .filter((holding) => !holding.manual)
-              .map((holding) => holding.ticker)
-          )
-        ];
+      const liveSymbols = [...new Set(holdings.filter((holding) => !holding.manual).map((holding) => holding.ticker))];
+      const results = await Promise.allSettled(liveSymbols.map((symbol) => fetchQuote(symbol)));
+      const errors = [];
+      let loadedCount = 0;
 
-        const finnhubSymbols = allLiveSymbols.filter((symbol) =>
-          FINNHUB_SYMBOLS.has(symbol)
-        );
-
-        const twelveDataSymbols = allLiveSymbols.filter((symbol) =>
-          TWELVE_DATA_SYMBOLS.has(symbol)
-        );
-
-        const unknownSymbols = allLiveSymbols.filter(
-          (symbol) =>
-            !FINNHUB_SYMBOLS.has(symbol) &&
-            !TWELVE_DATA_SYMBOLS.has(symbol)
-        );
-
-        const errors = [];
-        let loadedCount = 0;
-
-        const [finnhubResults, twelveDataResults] = await Promise.all([
-          Promise.allSettled(
-            finnhubSymbols.map((symbol) => fetchFinnhubQuote(symbol))
-          ),
-          Promise.allSettled(
-            twelveDataSymbols.map((symbol) => fetchTwelveDataQuote(symbol))
-          )
-        ]);
-
-        for (const result of finnhubResults) {
-          if (result.status === "fulfilled") {
-            const [symbol, quote] = result.value;
-            quoteMap[symbol] = quote;
-            loadedCount += 1;
-          } else {
-            errors.push(
-              result.reason?.message || "Unknown Finnhub error"
-            );
-          }
+      for (const result of results) {
+        if (result.status === "fulfilled") {
+          const [symbol, quote] = result.value;
+          quoteMap[symbol] = quote;
+          loadedCount += 1;
+        } else {
+          errors.push(result.reason?.message || "Unknown quote error");
         }
-
-        for (const result of twelveDataResults) {
-          if (result.status === "fulfilled") {
-            const [symbol, quote] = result.value;
-            quoteMap[symbol] = quote;
-            loadedCount += 1;
-          } else {
-            errors.push(
-              result.reason?.message || "Unknown Twelve Data error"
-            );
-          }
-        }
-
-        for (const symbol of unknownSymbols) {
-          errors.push(`${symbol}: no provider configured`);
-        }
-
-        render();
-
-        lastUpdatedElement.textContent =
-          `Last updated: ${new Date().toLocaleString()}`;
-
-        const manualCount = holdings.filter(
-          (holding) => holding.manual
-        ).length;
-
-        statusElement.textContent = errors.length
-          ? `Loaded ${loadedCount} of ${allLiveSymbols.length} live symbols. ${errors.join("; ")}`
-          : `Loaded ${loadedCount} live symbols: ${finnhubSymbols.length} from Finnhub and ${twelveDataSymbols.length} from Twelve Data. ${manualCount} manual holding excluded.`;
-      } catch (error) {
-        statusElement.textContent =
-          `Unexpected error: ${error?.message || String(error)}`;
-      } finally {
-        refreshButton.disabled = false;
       }
+
+      render();
+      lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleString()}`;
+      statusElement.textContent = errors.length
+        ? `Loaded ${loadedCount} of ${liveSymbols.length} live symbols. ${errors.length} unavailable: ${errors.join("; ")}`
+        : `Loaded ${loadedCount} live symbols. Manual holdings were not requested.`;
+      refreshButton.disabled = false;
     }
 
     document.querySelectorAll("th.sortable").forEach((header) => {
