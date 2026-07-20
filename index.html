@@ -295,7 +295,7 @@
         const percentChange = Number.parseFloat(quote?.percent_change);
         const positionCost = holding.shares * holding.costBasis;
         const marketValue = holding.shares * price;
-        const dollarImpact = marketValue - positionCost;
+        const dollarImpact = holding.shares * price * (percentChange / 100);
 
         totalCost += positionCost;
 
