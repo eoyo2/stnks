@@ -1,1 +1,391 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stock Portfolio Dashboard</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1020;
+      --panel: #131a2b;
+      --border: #273149;
+      --text: #eef2ff;
+      --muted: #98a2b8;
+      --positive: #40d98b;
+      --negative: #ff6b7a;
+      --accent: #78a7ff;
+    }
 
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-width: 320px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", sans-serif;
+    }
+
+    main {
+      width: min(1180px, calc(100% - 32px));
+      margin: 40px auto;
+    }
+
+    header {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      margin: 0 0 6px;
+      font-size: clamp(1.6rem, 3vw, 2.4rem);
+    }
+
+    .subtitle,
+    #lastUpdated,
+    #status {
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(160px, 1fr));
+      gap: 12px;
+      margin-bottom: 16px;
+    }
+
+    .card {
+      padding: 16px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    .card-label {
+      margin-bottom: 6px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .card-value {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    th,
+    td {
+      padding: 13px 15px;
+      border-bottom: 1px solid var(--border);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0;
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, 0.025);
+    }
+
+    .ticker {
+      font-weight: 750;
+      letter-spacing: 0.04em;
+    }
+
+    .positive { color: var(--positive); }
+    .negative { color: var(--negative); }
+    .muted { color: var(--muted); }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 12px;
+    }
+
+    button {
+      padding: 9px 13px;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      border-color: var(--accent);
+    }
+
+    button:disabled {
+      cursor: wait;
+      opacity: 0.6;
+    }
+
+    @media (max-width: 700px) {
+      main {
+        width: min(100% - 20px, 1180px);
+        margin: 22px auto;
+      }
+
+      .summary {
+        grid-template-columns: 1fr;
+      }
+
+      th,
+      td {
+        padding: 11px 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <h1>Stock Portfolio Dashboard</h1>
+        <div class="subtitle">Twelve Data quotes · refreshes every 60 seconds</div>
+      </div>
+      <div id="lastUpdated">Last updated: Never</div>
+    </header>
+
+    <section class="summary" aria-label="Portfolio summary">
+      <div class="card">
+        <div class="card-label">Market value</div>
+        <div class="card-value" id="marketValue">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Total cost</div>
+        <div class="card-value" id="totalCost">—</div>
+      </div>
+      <div class="card">
+        <div class="card-label">Unrealized P/L</div>
+        <div class="card-value" id="totalImpact">—</div>
+      </div>
+    </section>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Ticker</th>
+            <th>Current price</th>
+            <th>Intraday change</th>
+            <th>Shares</th>
+            <th>Cost basis/share</th>
+            <th>Dollar impact</th>
+          </tr>
+        </thead>
+        <tbody id="stockRows">
+          <tr>
+            <td colspan="6" class="muted">Loading quotes…</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="status-row">
+      <div id="status" role="status">Initializing…</div>
+      <button id="refreshButton" type="button">Refresh now</button>
+    </div>
+  </main>
+
+  <script>
+    "use strict";
+
+    // Replace this with your Twelve Data API key.
+    const API_KEY = "YOUR_TWELVE_DATA_API_KEY";
+
+    // Edit shares and costBasis values directly in this object.
+    const portfolio = {
+      AAPL:  { shares: 12, costBasis: 172.50 },
+      MSFT:  { shares: 8,  costBasis: 388.20 },
+      GOOGL: { shares: 10, costBasis: 145.00 },
+      AMZN:  { shares: 7,  costBasis: 178.40 },
+      NVDA:  { shares: 15, costBasis: 112.30 },
+      META:  { shares: 5,  costBasis: 474.75 },
+      TSLA:  { shares: 9,  costBasis: 205.10 },
+      AMD:   { shares: 14, costBasis: 151.25 },
+      NFLX:  { shares: 3,  costBasis: 612.00 },
+      JPM:   { shares: 11, costBasis: 196.80 },
+      V:     { shares: 6,  costBasis: 271.40 },
+      MA:    { shares: 4,  costBasis: 451.60 },
+      COST:  { shares: 2,  costBasis: 786.00 },
+      WMT:   { shares: 18, costBasis: 66.75 },
+      DIS:   { shares: 10, costBasis: 101.20 },
+      KO:    { shares: 20, costBasis: 61.10 },
+      PEP:   { shares: 8,  costBasis: 169.90 },
+      XOM:   { shares: 13, costBasis: 114.25 },
+      BA:    { shares: 6,  costBasis: 181.30 },
+      INTC:  { shares: 25, costBasis: 34.80 }
+    };
+
+    const REFRESH_INTERVAL_MS = 60_000;
+    const symbols = Object.keys(portfolio);
+
+    const rowsElement = document.getElementById("stockRows");
+    const statusElement = document.getElementById("status");
+    const lastUpdatedElement = document.getElementById("lastUpdated");
+    const refreshButton = document.getElementById("refreshButton");
+    const marketValueElement = document.getElementById("marketValue");
+    const totalCostElement = document.getElementById("totalCost");
+    const totalImpactElement = document.getElementById("totalImpact");
+
+    const currencyFormatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD"
+    });
+
+    const numberFormatter = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 4
+    });
+
+    function formatCurrency(value) {
+      return Number.isFinite(value) ? currencyFormatter.format(value) : "—";
+    }
+
+    function formatPercent(value) {
+      if (!Number.isFinite(value)) return "—";
+      const sign = value > 0 ? "+" : "";
+      return `${sign}${value.toFixed(2)}%`;
+    }
+
+    function valueClass(value) {
+      if (value > 0) return "positive";
+      if (value < 0) return "negative";
+      return "";
+    }
+
+    function normalizeQuotes(payload) {
+      // A multi-symbol response is keyed by symbol.
+      // A single-symbol response is returned as one quote object.
+      if (payload && payload.symbol) {
+        return { [payload.symbol]: payload };
+      }
+      return payload || {};
+    }
+
+    function render(quotes) {
+      let totalMarketValue = 0;
+      let totalCost = 0;
+      let totalImpact = 0;
+
+      rowsElement.innerHTML = symbols.map((symbol) => {
+        const holding = portfolio[symbol];
+        const quote = quotes[symbol];
+
+        const price = Number.parseFloat(quote?.close);
+        const percentChange = Number.parseFloat(quote?.percent_change);
+        const positionCost = holding.shares * holding.costBasis;
+        const marketValue = holding.shares * price;
+        const dollarImpact = marketValue - positionCost;
+
+        totalCost += positionCost;
+
+        if (Number.isFinite(marketValue)) {
+          totalMarketValue += marketValue;
+          totalImpact += dollarImpact;
+        }
+
+        return `
+          <tr>
+            <td class="ticker">${symbol}</td>
+            <td>${formatCurrency(price)}</td>
+            <td class="${valueClass(percentChange)}">${formatPercent(percentChange)}</td>
+            <td>${numberFormatter.format(holding.shares)}</td>
+            <td>${formatCurrency(holding.costBasis)}</td>
+            <td class="${valueClass(dollarImpact)}">${formatCurrency(dollarImpact)}</td>
+          </tr>
+        `;
+      }).join("");
+
+      marketValueElement.textContent = formatCurrency(totalMarketValue);
+      totalCostElement.textContent = formatCurrency(totalCost);
+      totalImpactElement.textContent = formatCurrency(totalImpact);
+      totalImpactElement.className = `card-value ${valueClass(totalImpact)}`;
+    }
+
+    async function fetchQuotes() {
+      if (!API_KEY || API_KEY === "YOUR_TWELVE_DATA_API_KEY") {
+        statusElement.textContent = "Add your Twelve Data API key in the API_KEY constant.";
+        render({});
+        return;
+      }
+
+      refreshButton.disabled = true;
+      statusElement.textContent = "Fetching latest quotes…";
+
+      const url = new URL("https://api.twelvedata.com/quote");
+      url.searchParams.set("symbol", symbols.join(","));
+      url.searchParams.set("apikey", API_KEY);
+
+      try {
+        const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status} ${response.statusText}`);
+        }
+
+        const payload = await response.json();
+
+        if (payload.status === "error") {
+          throw new Error(payload.message || "Twelve Data returned an error.");
+        }
+
+        const quotes = normalizeQuotes(payload);
+        render(quotes);
+
+        const now = new Date();
+        lastUpdatedElement.textContent =
+          `Last updated: ${now.toLocaleString()}`;
+        statusElement.textContent =
+          `Loaded ${Object.keys(quotes).length} of ${symbols.length} symbols.`;
+      } catch (error) {
+        console.error(error);
+        statusElement.textContent = `Refresh failed: ${error.message}`;
+      } finally {
+        refreshButton.disabled = false;
+      }
+    }
+
+    refreshButton.addEventListener("click", fetchQuotes);
+
+    fetchQuotes();
+    setInterval(fetchQuotes, REFRESH_INTERVAL_MS);
+  </script>
+</body>
+</html>
