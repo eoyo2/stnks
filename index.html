@@ -296,7 +296,7 @@
 
       const price = isManual
         ? NaN
-        : validNumber(quote?.price);
+        : validPrice(quote?.price);
 
       const dayChange = isManual
         ? NaN
@@ -477,41 +477,6 @@
     ];
   }
 
-      const results = [];
-      const errors = [];
-
-      for (const symbol of symbols) {
-        const rawQuote =
-          data[symbol] ??
-          (data.symbol === symbol ? data : null);
-
-        if (!rawQuote || rawQuote.status === "error") {
-          errors.push(
-            `${symbol}: ${rawQuote?.message || "no quote returned"}`
-          );
-          continue;
-        }
-
-        const price = Number(rawQuote.close);
-
-        if (!Number.isFinite(price) || price <= 0) {
-          errors.push(`${symbol}: invalid NAV`);
-          continue;
-        }
-
-        results.push([
-          symbol,
-          {
-            price,
-            change: Number(rawQuote.change),
-            percentChange: Number(rawQuote.percent_change),
-            provider: "Twelve Data"
-          }
-        ]);
-      }
-
-      return { results, errors };
-    }
 
     async function fetchQuotes() {
       if (!FINNHUB_API_KEY || !TWELVE_DATA_API_KEY) {
@@ -524,39 +489,52 @@
       refreshButton.disabled = true;
       statusElement.textContent = "Fetching latest quotes…";
 
-      const allLiveSymbols = [
-        ...new Set(
-          holdings
-            .filter((holding) => !holding.manual)
-            .map((holding) => holding.ticker)
-        )
-      ];
+      try {
+        const allLiveSymbols = [
+          ...new Set(
+            holdings
+              .filter((holding) => !holding.manual)
+              .map((holding) => holding.ticker)
+          )
+        ];
 
-      const finnhubSymbols = allLiveSymbols.filter((symbol) =>
-        FINNHUB_SYMBOLS.has(symbol)
-      );
+        const finnhubSymbols = allLiveSymbols.filter((symbol) =>
+          FINNHUB_SYMBOLS.has(symbol)
+        );
 
-      const twelveDataSymbols = allLiveSymbols.filter((symbol) =>
-        TWELVE_DATA_SYMBOLS.has(symbol)
-      );
+        const twelveDataSymbols = allLiveSymbols.filter((symbol) =>
+          TWELVE_DATA_SYMBOLS.has(symbol)
+        );
 
-      const unknownSymbols = allLiveSymbols.filter(
-        (symbol) =>
-          !FINNHUB_SYMBOLS.has(symbol) &&
-          !TWELVE_DATA_SYMBOLS.has(symbol)
-      );
+        const unknownSymbols = allLiveSymbols.filter(
+          (symbol) =>
+            !FINNHUB_SYMBOLS.has(symbol) &&
+            !TWELVE_DATA_SYMBOLS.has(symbol)
+        );
 
-      const errors = [];
-      let loadedCount = 0;
+        const errors = [];
+        let loadedCount = 0;
 
-            const [finnhubResults, twelveDataResults] = await Promise.all([
+        const [finnhubResults, twelveDataResults] = await Promise.all([
           Promise.allSettled(
-            finnhubSymbols.map(fetchFinnhubQuote)
+            finnhubSymbols.map((symbol) => fetchFinnhubQuote(symbol))
           ),
           Promise.allSettled(
-            twelveDataSymbols.map(fetchTwelveDataQuote)
+            twelveDataSymbols.map((symbol) => fetchTwelveDataQuote(symbol))
           )
         ]);
+
+        for (const result of finnhubResults) {
+          if (result.status === "fulfilled") {
+            const [symbol, quote] = result.value;
+            quoteMap[symbol] = quote;
+            loadedCount += 1;
+          } else {
+            errors.push(
+              result.reason?.message || "Unknown Finnhub error"
+            );
+          }
+        }
 
         for (const result of twelveDataResults) {
           if (result.status === "fulfilled") {
@@ -570,50 +548,28 @@
           }
         }
 
-      for (const result of finnhubResults) {
-        if (result.status === "fulfilled") {
-          const [symbol, quote] = result.value;
-          quoteMap[symbol] = quote;
-          loadedCount += 1;
-        } else {
-          errors.push(
-            result.reason?.message || "Unknown Finnhub error"
-          );
-        }
-      }
-
-      if (twelveDataResult.status === "fulfilled") {
-        for (const [symbol, quote] of twelveDataResult.value.results) {
-          quoteMap[symbol] = quote;
-          loadedCount += 1;
+        for (const symbol of unknownSymbols) {
+          errors.push(`${symbol}: no provider configured`);
         }
 
-        errors.push(...twelveDataResult.value.errors);
-      } else {
-        errors.push(
-          twelveDataResult.reason?.message ||
-          "Unknown Twelve Data error"
-        );
+        render();
+
+        lastUpdatedElement.textContent =
+          `Last updated: ${new Date().toLocaleString()}`;
+
+        const manualCount = holdings.filter(
+          (holding) => holding.manual
+        ).length;
+
+        statusElement.textContent = errors.length
+          ? `Loaded ${loadedCount} of ${allLiveSymbols.length} live symbols. ${errors.join("; ")}`
+          : `Loaded ${loadedCount} live symbols: ${finnhubSymbols.length} from Finnhub and ${twelveDataSymbols.length} from Twelve Data. ${manualCount} manual holding excluded.`;
+      } catch (error) {
+        statusElement.textContent =
+          `Unexpected error: ${error?.message || String(error)}`;
+      } finally {
+        refreshButton.disabled = false;
       }
-
-      for (const symbol of unknownSymbols) {
-        errors.push(`${symbol}: no provider configured`);
-      }
-
-      render();
-
-      lastUpdatedElement.textContent =
-        `Last updated: ${new Date().toLocaleString()}`;
-
-      const manualCount = holdings.filter(
-        (holding) => holding.manual
-      ).length;
-
-      statusElement.textContent = errors.length
-        ? `Loaded ${loadedCount} of ${allLiveSymbols.length} live symbols. ${errors.join("; ")}`
-        : `Loaded ${loadedCount} live symbols: ${finnhubSymbols.length} from Finnhub and ${twelveDataSymbols.length} from Twelve Data. ${manualCount} manual holding excluded.`;
-
-      refreshButton.disabled = false;
     }
 
     document.querySelectorAll("th.sortable").forEach((header) => {
