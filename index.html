@@ -3,24 +3,22 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Stock Portfolio Dashboard</title>
+  <title>Portfolio Today</title>
   <style>
     :root {
       color-scheme: dark;
       --bg: #0b1020;
       --panel: #131a2b;
-      --panel-soft: #171f33;
       --border: #273149;
       --text: #eef2ff;
       --muted: #98a2b8;
       --positive: #40d98b;
       --negative: #ff6b7a;
       --accent: #78a7ff;
-      --brokerage: #78a7ff;
-      --c401k: #40d98b;
-      --e401k: #b895ff;
     }
+
     * { box-sizing: border-box; }
+
     body {
       margin: 0;
       min-width: 320px;
@@ -28,153 +26,148 @@
       color: var(--text);
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-    main { width: min(1480px, calc(100% - 32px)); margin: 40px auto; }
-    header {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: end;
-      justify-content: space-between;
-      gap: 16px;
-      margin-bottom: 20px;
+
+    main {
+      width: min(900px, calc(100% - 24px));
+      margin: 22px auto;
     }
-    h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 3vw, 2.4rem); }
-    .subtitle, #lastUpdated, #status { color: var(--muted); font-size: 0.9rem; }
-    .summary {
-      display: grid;
-      grid-template-columns: repeat(3, minmax(180px, 1fr));
-      gap: 12px;
-      margin-bottom: 16px;
-    }
-    .card {
-      padding: 16px;
+
+    .today-card {
+      padding: 18px;
+      margin-bottom: 14px;
+      text-align: center;
       background: var(--panel);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: 14px;
     }
-    .card-label {
-      margin-bottom: 6px;
+
+    .today-label {
+      margin-bottom: 5px;
       color: var(--muted);
-      font-size: 0.8rem;
+      font-size: 0.78rem;
+      font-weight: 700;
       text-transform: uppercase;
-      letter-spacing: 0.06em;
+      letter-spacing: 0.08em;
     }
-    .card-value { font-size: 1.35rem; font-weight: 700; }
-    .card-note { margin-top: 6px; color: var(--muted); font-size: 0.75rem; }
+
+    .today-dollars {
+      font-size: clamp(2rem, 10vw, 3.4rem);
+      font-weight: 800;
+      line-height: 1.05;
+    }
+
+    .today-percent {
+      margin-top: 6px;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
     .table-wrap {
       overflow-x: auto;
       background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 12px;
     }
-    table { width: 100%; min-width: 1160px; border-collapse: collapse; }
+
+    table {
+      width: 100%;
+      min-width: 500px;
+      border-collapse: collapse;
+    }
+
     th, td {
-      padding: 13px 15px;
+      padding: 13px 14px;
       border-bottom: 1px solid var(--border);
       text-align: right;
       white-space: nowrap;
     }
+
     th {
       color: var(--muted);
-      font-size: 0.72rem;
+      font-size: 0.7rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
       user-select: none;
     }
+
     th.sortable { cursor: pointer; }
     th.sortable:hover { color: var(--text); }
     th:first-child, td:first-child { text-align: left; }
     tbody tr:last-child td { border-bottom: 0; }
-    tbody tr.holding-row:hover { background: rgba(255, 255, 255, 0.025); }
-    .ticker { font-weight: 750; letter-spacing: 0.04em; }
-    .fund-name {
+    tbody tr:hover { background: rgba(255, 255, 255, 0.025); }
+
+    .ticker {
+      font-weight: 800;
+      letter-spacing: 0.04em;
+    }
+
+    .fund-note {
       margin-top: 3px;
       color: var(--muted);
-      font-size: 0.74rem;
+      font-size: 0.7rem;
       font-weight: 400;
       letter-spacing: 0;
     }
-    .group-row td {
-      padding-top: 15px;
-      padding-bottom: 10px;
-      text-align: left;
-      background: var(--panel-soft);
-      border-bottom-color: var(--border);
-      font-size: 0.78rem;
-      font-weight: 750;
-      text-transform: uppercase;
-      letter-spacing: 0.07em;
-    }
-    .group-badge { display: inline-flex; align-items: center; gap: 8px; }
-    .group-dot {
-      width: 8px;
-      height: 8px;
+
+    .badge {
+      display: inline-block;
+      margin-left: 6px;
+      padding: 2px 5px;
+      color: var(--muted);
+      border: 1px solid var(--border);
       border-radius: 999px;
-      background: var(--account-color);
+      font-size: 0.58rem;
+      font-weight: 700;
+      vertical-align: 1px;
     }
+
     .positive { color: var(--positive); }
     .negative { color: var(--negative); }
     .muted { color: var(--muted); }
-    .manual-badge, .stale-badge {
-      display: inline-block;
-      margin-left: 7px;
-      padding: 2px 6px;
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      color: var(--muted);
-      font-size: 0.63rem;
-      font-weight: 650;
-      letter-spacing: 0.04em;
-      vertical-align: 1px;
-    }
+
     .status-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 12px;
-      margin-top: 12px;
+      margin-top: 11px;
     }
+
+    #status, #lastUpdated {
+      color: var(--muted);
+      font-size: 0.76rem;
+    }
+
+    #lastUpdated { margin-top: 3px; }
+
     button {
-      padding: 9px 13px;
+      flex: 0 0 auto;
+      padding: 9px 12px;
       color: var(--text);
       background: transparent;
       border: 1px solid var(--border);
       border-radius: 8px;
       cursor: pointer;
     }
+
     button:hover { border-color: var(--accent); }
     button:disabled { cursor: wait; opacity: 0.6; }
-    @media (max-width: 700px) {
-      main { width: min(100% - 20px, 1480px); margin: 22px auto; }
-      .summary { grid-template-columns: 1fr; }
-      th, td { padding: 11px 12px; }
+
+    @media (max-width: 600px) {
+      main { width: calc(100% - 16px); margin: 10px auto 18px; }
+      .today-card { padding: 16px 12px; margin-bottom: 8px; }
+      th, td { padding: 11px 10px; }
+      table { min-width: 440px; }
+      .fund-note { max-width: 155px; overflow: hidden; text-overflow: ellipsis; }
     }
   </style>
 </head>
 <body>
   <main>
-    <header>
-      <div>
-        <h1>Stock Portfolio Dashboard</h1>
-        <div class="subtitle">Finnhub for ETFs · Twelve Data for mutual funds · loads on open or manual refresh</div>
-      </div>
-      <div id="lastUpdated">Last updated: Never</div>
-    </header>
-
-    <section class="summary" aria-label="Portfolio summary">
-      <div class="card">
-        <div class="card-label">Market value</div>
-        <div class="card-value" id="marketValue">—</div>
-      </div>
-      <div class="card">
-        <div class="card-label">Known cost basis</div>
-        <div class="card-value" id="totalCost">—</div>
-        <div class="card-note" id="costBasisNote"></div>
-      </div>
-      <div class="card">
-        <div class="card-label">Total unrealized G/L</div>
-        <div class="card-value" id="totalUnrealized">—</div>
-        <div class="card-note" id="unrealizedNote"></div>
-      </div>
+    <section class="today-card" aria-label="Today's portfolio change">
+      <div class="today-label">Today</div>
+      <div class="today-dollars" id="todayDollars">—</div>
+      <div class="today-percent" id="todayPercent">—</div>
     </section>
 
     <div class="table-wrap">
@@ -182,25 +175,23 @@
         <thead>
           <tr>
             <th class="sortable" data-sort="ticker">Ticker</th>
-            <th class="sortable" data-sort="price">Current price / NAV</th>
-            <th class="sortable" data-sort="dayPercent">Intraday change %</th>
-            <th class="sortable" data-sort="dayChange">Intraday change $</th>
+            <th class="sortable" data-sort="dayPercent">Today %</th>
+            <th class="sortable" data-sort="todayGain">Today $</th>
             <th class="sortable" data-sort="shares">Shares</th>
-            <th class="sortable" data-sort="costBasisTotal">Cost basis total</th>
-            <th class="sortable" data-sort="marketValue">Value total</th>
-            <th class="sortable" data-sort="todayGain">Today's gain</th>
-            <th class="sortable" data-sort="unrealized">Unrealized G/L</th>
           </tr>
         </thead>
         <tbody id="stockRows">
-          <tr><td colspan="9" class="muted">Loading quotes…</td></tr>
+          <tr><td colspan="4" class="muted">Loading quotes…</td></tr>
         </tbody>
       </table>
     </div>
 
     <div class="status-row">
-      <div id="status" role="status">Initializing…</div>
-      <button id="refreshButton" type="button">Refresh now</button>
+      <div>
+        <div id="status" role="status">Initializing…</div>
+        <div id="lastUpdated">Last updated: Never</div>
+      </div>
+      <button id="refreshButton" type="button">Refresh</button>
     </div>
   </main>
 
@@ -210,62 +201,67 @@
     const FINNHUB_API_KEY = "d9f696hr01qjcbq4gg50d9f696hr01qjcbq4gg5g";
     const TWELVE_DATA_API_KEY = "6912af7844eb4b90ac11578a7f6791a6";
 
-    const FINNHUB_SYMBOLS = new Set(["SPY", "RSP", "VXUS"]);
+    const FUND_PROXIES = {
+      FXAIX: "SPY",
+      FSMDX: "IWR",
+      FSSNX: "IWM",
+      FSGGX: "VXUS",
+      FTIHX: "VXUS",
+      FXNAX: "AGG"
+    };
 
-    const TWELVE_DATA_SYMBOLS = new Set([
-      "FXAIX",
-      "FSMDX",
-      "FSSNX",
-      "FSGGX",
-      "FTIHX",
-      "FXNAX"
-    ]);
-
-    // Set unknown cost bases to null. Add manualValue if Finnhub cannot quote a fund.
     const holdings = [
-      { account: "Brokerage", ticker: "SPY", name: "SPDR S&P 500 ETF Trust", shares: 73, costBasisTotal: 36925 },
-      { account: "Brokerage", ticker: "RSP", name: "Invesco S&P 500 Equal Weight ETF", shares: 392, costBasisTotal: 80283 },
-      { account: "Brokerage", ticker: "VXUS", name: "Vanguard Total International Stock ETF", shares: 90, costBasisTotal: 7500 },
+      { ticker: "SPY", name: "SPDR S&P 500 ETF Trust", shares: 73 },
+      { ticker: "RSP", name: "Invesco S&P 500 Equal Weight ETF", shares: 392 },
+      { ticker: "VXUS", name: "Vanguard Total International Stock ETF", shares: 90 },
 
-      { account: "C 401(k)", ticker: "FSMDX", name: "Fidelity Mid Cap Index Fund", shares: 406, costBasisTotal: 15938 },
-      { account: "C 401(k)", ticker: "FSSNX", name: "Fidelity Small Cap Index Fund", shares: 479, costBasisTotal: 15962 },
-      { account: "C 401(k)", ticker: "FXAIX", name: "Fidelity 500 Index Fund", shares: 222, costBasisTotal: 53410 },
-      { account: "C 401(k)", ticker: "FSGGX", name: "Fidelity Global ex U.S. Index Fund", shares: 1045, costBasisTotal: 21250 },
+      { ticker: "FSMDX", name: "Fidelity Mid Cap Index Fund", shares: 406 },
+      { ticker: "FSSNX", name: "Fidelity Small Cap Index Fund", shares: 479 },
+      { ticker: "FXAIX", name: "Fidelity 500 Index Fund", shares: 222 },
+      { ticker: "FSGGX", name: "Fidelity Global ex U.S. Index Fund", shares: 1045 },
 
-      { account: "E 401(k)", ticker: "FXAIX", name: "Fidelity 500 Index Fund", shares: 866, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FTIHX", name: "Fidelity Total International Index Fund", shares: 3359, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FSSNX", name: "Fidelity Small Cap Index Fund", shares: 1279, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FSMDX", name: "Fidelity Mid Cap Index Fund", shares: 1070, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "FXNAX", name: "Fidelity U.S. Bond Index Fund", shares: 12, costBasisTotal: null },
-      { account: "E 401(k)", ticker: "SAGIC", name: "SAGIC Bond Diversified", manual: true, manualValue: 62691, costBasisTotal: 62691 }
+      { ticker: "FXAIX", name: "Fidelity 500 Index Fund", shares: 866 },
+      { ticker: "FTIHX", name: "Fidelity Total International Index Fund", shares: 3359 },
+      { ticker: "FSSNX", name: "Fidelity Small Cap Index Fund", shares: 1279 },
+      { ticker: "FSMDX", name: "Fidelity Mid Cap Index Fund", shares: 1070 },
+      { ticker: "FXNAX", name: "Fidelity U.S. Bond Index Fund", shares: 12 },
+      { ticker: "SAGIC", name: "SAGIC Bond Diversified", manual: true, manualValue: 62691 }
     ];
 
-    const accountOrder = ["Brokerage", "C 401(k)", "E 401(k)"];
-    const accountColors = {
-      "Brokerage": "var(--brokerage)",
-      "C 401(k)": "var(--c401k)",
-      "E 401(k)": "var(--e401k)"
-    };
+    // Identical tickers are combined, while the order of first appearance is preserved.
+    const consolidatedHoldings = [...holdings.reduce((map, holding) => {
+      const existing = map.get(holding.ticker);
+      if (existing) {
+        existing.shares = Number(existing.shares || 0) + Number(holding.shares || 0);
+        if (holding.manualValue != null) {
+          existing.manualValue = Number(existing.manualValue || 0) + Number(holding.manualValue || 0);
+        }
+      } else {
+        map.set(holding.ticker, { ...holding });
+      }
+      return map;
+    }, new Map()).values()];
 
     const rowsElement = document.getElementById("stockRows");
     const statusElement = document.getElementById("status");
     const lastUpdatedElement = document.getElementById("lastUpdated");
     const refreshButton = document.getElementById("refreshButton");
-    const marketValueElement = document.getElementById("marketValue");
-    const totalCostElement = document.getElementById("totalCost");
-    const totalUnrealizedElement = document.getElementById("totalUnrealized");
-    const costBasisNoteElement = document.getElementById("costBasisNote");
-    const unrealizedNoteElement = document.getElementById("unrealizedNote");
+    const todayDollarsElement = document.getElementById("todayDollars");
+    const todayPercentElement = document.getElementById("todayPercent");
 
-    const currencyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
-    const numberFormatter = new Intl.NumberFormat("en-US", { maximumFractionDigits: 4 });
+    const currencyFormatter = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: 0
+    });
 
-    let quoteMap = {};
+    const numberFormatter = new Intl.NumberFormat("en-US", {
+      maximumFractionDigits: 4
+    });
+
+    let etfQuoteMap = {};
+    let mutualFundNavMap = {};
     let sortState = { key: null, direction: 1 };
-
-    function formatCurrency(value) {
-      return Number.isFinite(value) ? currencyFormatter.format(value) : "—";
-    }
 
     function formatPercent(value) {
       if (!Number.isFinite(value)) return "—";
@@ -285,56 +281,81 @@
       return "";
     }
 
-    function validPrice(value) {
+    function validPositiveNumber(value) {
       const number = Number(value);
       return Number.isFinite(number) && number > 0 ? number : NaN;
     }
 
     function deriveRow(holding) {
-      const quote = quoteMap[holding.ticker];
-      const isManual = holding.manual === true;
+      if (holding.manual) {
+        const manualValue = Number(holding.manualValue);
+        return {
+          ...holding,
+          dayPercent: NaN,
+          todayGain: NaN,
+          priorValue: Number.isFinite(manualValue) ? manualValue : NaN,
+          currentValue: Number.isFinite(manualValue) ? manualValue : NaN,
+          quoteAvailable: Number.isFinite(manualValue),
+          note: "Manual · no daily estimate"
+        };
+      }
 
-      const price = isManual
-        ? NaN
-        : validPrice(quote?.price);
+      const proxySymbol = FUND_PROXIES[holding.ticker];
 
-      const dayChange = isManual
-        ? NaN
-        : Number(quote?.change);
+      if (proxySymbol) {
+        const priorNav = validPositiveNumber(mutualFundNavMap[holding.ticker]?.priorNav);
+        const proxyQuote = etfQuoteMap[proxySymbol];
+        const proxyCurrent = validPositiveNumber(proxyQuote?.current);
+        const proxyPreviousClose = validPositiveNumber(proxyQuote?.previousClose);
 
-      const dayPercent = isManual
-        ? NaN
-        : Number(quote?.percentChange);
-
-      const marketValue = isManual
-        ? Number(holding.manualValue)
-        : Number.isFinite(price)
-          ? holding.shares * price
+        const proxyRatio = Number.isFinite(proxyCurrent) && Number.isFinite(proxyPreviousClose)
+          ? proxyCurrent / proxyPreviousClose
           : NaN;
 
-      const costBasisTotal = Number(holding.costBasisTotal);
-      const hasCostBasis = Number.isFinite(costBasisTotal);
-
-      const todayGain =
-        !isManual && Number.isFinite(dayChange)
-          ? holding.shares * dayChange
+        const estimatedPrice = Number.isFinite(priorNav) && Number.isFinite(proxyRatio)
+          ? priorNav * proxyRatio
           : NaN;
 
-      const unrealized =
-        Number.isFinite(marketValue) && hasCostBasis
-          ? marketValue - costBasisTotal
+        const dayPercent = Number.isFinite(proxyRatio)
+          ? (proxyRatio - 1) * 100
           : NaN;
+
+        const todayGain = Number.isFinite(estimatedPrice) && Number.isFinite(priorNav)
+          ? holding.shares * (estimatedPrice - priorNav)
+          : NaN;
+
+        return {
+          ...holding,
+          proxySymbol,
+          priorNav,
+          estimatedPrice,
+          dayPercent,
+          todayGain,
+          priorValue: Number.isFinite(priorNav) ? holding.shares * priorNav : NaN,
+          currentValue: Number.isFinite(estimatedPrice) ? holding.shares * estimatedPrice : NaN,
+          quoteAvailable: Number.isFinite(estimatedPrice),
+          note: `Estimate via ${proxySymbol}`
+        };
+      }
+
+      const quote = etfQuoteMap[holding.ticker];
+      const current = validPositiveNumber(quote?.current);
+      const previousClose = validPositiveNumber(quote?.previousClose);
+      const dayPercent = Number.isFinite(current) && Number.isFinite(previousClose)
+        ? ((current / previousClose) - 1) * 100
+        : NaN;
+      const todayGain = Number.isFinite(current) && Number.isFinite(previousClose)
+        ? holding.shares * (current - previousClose)
+        : NaN;
 
       return {
         ...holding,
-        price,
-        dayChange,
         dayPercent,
-        marketValue,
         todayGain,
-        unrealized,
-        hasCostBasis,
-        quoteAvailable: isManual || Number.isFinite(price)
+        priorValue: Number.isFinite(previousClose) ? holding.shares * previousClose : NaN,
+        currentValue: Number.isFinite(current) ? holding.shares * current : NaN,
+        quoteAvailable: Number.isFinite(current) && Number.isFinite(previousClose),
+        note: "Live ETF quote"
       };
     }
 
@@ -353,66 +374,54 @@
     }
 
     function render() {
-      const derived = holdings.map(deriveRow);
-      let totalMarketValue = 0;
-      let totalKnownCost = 0;
-      let totalUnrealized = 0;
-      let missingCostCount = 0;
-
-      for (const row of derived) {
-        if (Number.isFinite(row.marketValue)) totalMarketValue += row.marketValue;
-        if (row.hasCostBasis) totalKnownCost += row.costBasisTotal;
-        else missingCostCount += 1;
-        if (Number.isFinite(row.unrealized)) totalUnrealized += row.unrealized;
+      let rows = consolidatedHoldings.map(deriveRow);
+      if (sortState.key) {
+        rows = [...rows].sort((a, b) => compareRows(a, b, sortState.key, sortState.direction));
       }
 
-      const html = [];
-      for (const account of accountOrder) {
-        let accountRows = derived.filter((row) => row.account === account);
-        if (sortState.key) {
-          accountRows = [...accountRows].sort((a, b) => compareRows(a, b, sortState.key, sortState.direction));
-        }
+      let totalTodayGain = 0;
+      let totalPriorValue = 0;
+      let hasTodayGain = false;
 
-        html.push(`
-          <tr class="group-row">
-            <td colspan="9">
-              <span class="group-badge" style="--account-color: ${accountColors[account]}">
-                <span class="group-dot" aria-hidden="true"></span>${account}
-              </span>
+      for (const row of rows) {
+        if (Number.isFinite(row.todayGain)) {
+          totalTodayGain += row.todayGain;
+          hasTodayGain = true;
+        }
+        if (Number.isFinite(row.priorValue)) totalPriorValue += row.priorValue;
+      }
+
+      const totalTodayPercent = hasTodayGain && totalPriorValue > 0
+        ? (totalTodayGain / totalPriorValue) * 100
+        : NaN;
+
+      todayDollarsElement.textContent = hasTodayGain
+        ? formatSignedCurrency(totalTodayGain)
+        : "—";
+      todayDollarsElement.className = `today-dollars ${valueClass(totalTodayGain)}`;
+
+      todayPercentElement.textContent = formatPercent(totalTodayPercent);
+      todayPercentElement.className = `today-percent ${valueClass(totalTodayPercent)}`;
+
+      rowsElement.innerHTML = rows.map((row) => {
+        const estimateBadge = row.proxySymbol ? '<span class="badge">EST</span>' : "";
+        const manualBadge = row.manual ? '<span class="badge">MANUAL</span>' : "";
+        const unavailableBadge = !row.quoteAvailable && !row.manual
+          ? '<span class="badge">NO QUOTE</span>'
+          : "";
+
+        return `
+          <tr>
+            <td class="ticker">
+              ${row.ticker}${estimateBadge}${manualBadge}${unavailableBadge}
+              <div class="fund-note">${row.note}</div>
             </td>
+            <td class="${valueClass(row.dayPercent)}">${formatPercent(row.dayPercent)}</td>
+            <td class="${valueClass(row.todayGain)}">${formatSignedCurrency(row.todayGain)}</td>
+            <td>${Number.isFinite(row.shares) ? numberFormatter.format(row.shares) : "—"}</td>
           </tr>
-        `);
-
-        for (const row of accountRows) {
-          const manualBadge = row.manual ? '<span class="manual-badge">MANUAL</span>' : "";
-          const unavailableBadge = !row.manual && !row.quoteAvailable ? '<span class="stale-badge">NO QUOTE</span>' : "";
-          html.push(`
-            <tr class="holding-row">
-              <td class="ticker">${row.ticker}${manualBadge}${unavailableBadge}<div class="fund-name">${row.name}</div></td>
-              <td>${row.manual ? "Manual" : formatCurrency(row.price)}</td>
-              <td class="${valueClass(row.dayPercent)}">${formatPercent(row.dayPercent)}</td>
-              <td class="${valueClass(row.dayChange)}">${formatSignedCurrency(row.dayChange)}</td>
-              <td>${Number.isFinite(row.shares) ? numberFormatter.format(row.shares) : "—"}</td>
-              <td>${row.hasCostBasis ? formatCurrency(row.costBasisTotal) : "—"}</td>
-              <td>${formatCurrency(row.marketValue)}</td>
-              <td class="${valueClass(row.todayGain)}">${formatSignedCurrency(row.todayGain)}</td>
-              <td class="${valueClass(row.unrealized)}">${formatSignedCurrency(row.unrealized)}</td>
-            </tr>
-          `);
-        }
-      }
-
-      rowsElement.innerHTML = html.join("");
-      marketValueElement.textContent = formatCurrency(totalMarketValue);
-      totalCostElement.textContent = formatCurrency(totalKnownCost);
-      totalUnrealizedElement.textContent = formatSignedCurrency(totalUnrealized);
-      totalUnrealizedElement.className = `card-value ${valueClass(totalUnrealized)}`;
-
-      const missingMessage = missingCostCount
-        ? `${missingCostCount} holding${missingCostCount === 1 ? "" : "s"} missing cost basis`
-        : "";
-      costBasisNoteElement.textContent = missingMessage;
-      unrealizedNoteElement.textContent = missingMessage ? "Calculated only for holdings with cost basis" : "";
+        `;
+      }).join("");
     }
 
     async function fetchFinnhubQuote(symbol) {
@@ -420,154 +429,106 @@
       url.searchParams.set("symbol", symbol);
       url.searchParams.set("token", FINNHUB_API_KEY);
 
-      console.log(url.toString());
       const response = await fetch(url);
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(
-          `${symbol} / Finnhub: ${data.error || `HTTP ${response.status}`}`
-        );
+        throw new Error(`${symbol} / Finnhub: ${data.error || `HTTP ${response.status}`}`);
       }
 
-      const price = Number(data.c);
+      const current = validPositiveNumber(data.c);
+      const previousClose = validPositiveNumber(data.pc);
 
-      if (!Number.isFinite(price) || price <= 0) {
-        throw new Error(`${symbol} / Finnhub: no quote returned`);
+      if (!Number.isFinite(current) || !Number.isFinite(previousClose)) {
+        throw new Error(`${symbol} / Finnhub: incomplete quote`);
       }
 
-      return [
-        symbol,
-        {
-          price,
-          change: Number(data.d),
-          percentChange: Number(data.dp),
-          provider: "Finnhub"
-        }
-      ];
+      return [symbol, { current, previousClose }];
     }
 
-    async function fetchTwelveDataQuote(symbol) {
-    const url = new URL("https://api.twelvedata.com/quote");
-    url.searchParams.set("symbol", symbol);
-    url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
+    async function fetchTwelveDataPriorNav(symbol) {
+      const url = new URL("https://api.twelvedata.com/quote");
+      url.searchParams.set("symbol", symbol);
+      url.searchParams.set("apikey", TWELVE_DATA_API_KEY);
 
-    const response = await fetch(url);
-    const data = await response.json();
+      const response = await fetch(url);
+      const data = await response.json();
 
-    if (!response.ok || data.status === "error") {
-      throw new Error(
-        `${symbol}: ${data.message || `HTTP ${response.status}`}`
-      );
-    }
-
-    const price = Number(data.close);
-
-    if (!Number.isFinite(price) || price <= 0) {
-      throw new Error(`${symbol}: invalid NAV`);
-    }
-
-    return [
-      symbol,
-      {
-        price,
-        change: Number(data.change),
-        percentChange: Number(data.percent_change),
-        provider: "Twelve Data"
+      if (!response.ok || data.status === "error") {
+        throw new Error(`${symbol} / Twelve Data: ${data.message || `HTTP ${response.status}`}`);
       }
-    ];
-  }
 
+      const priorNav = validPositiveNumber(data.close);
+      if (!Number.isFinite(priorNav)) {
+        throw new Error(`${symbol} / Twelve Data: invalid prior NAV`);
+      }
+
+      return [symbol, { priorNav }];
+    }
 
     async function fetchQuotes() {
       if (!FINNHUB_API_KEY || !TWELVE_DATA_API_KEY) {
-        statusElement.textContent =
-          "Add both API keys near the top of the script.";
+        statusElement.textContent = "Add both API keys near the top of the script.";
         render();
         return;
       }
 
       refreshButton.disabled = true;
-      statusElement.textContent = "Fetching latest quotes…";
+      statusElement.textContent = "Fetching quotes…";
 
       try {
-        const allLiveSymbols = [
-          ...new Set(
-            holdings
-              .filter((holding) => !holding.manual)
-              .map((holding) => holding.ticker)
-          )
-        ];
+        const mutualFundSymbols = [...new Set(
+          consolidatedHoldings
+            .map((holding) => holding.ticker)
+            .filter((ticker) => Boolean(FUND_PROXIES[ticker]))
+        )];
 
-        const finnhubSymbols = allLiveSymbols.filter((symbol) =>
-          FINNHUB_SYMBOLS.has(symbol)
-        );
+        const directEtfSymbols = consolidatedHoldings
+          .filter((holding) => !holding.manual && !FUND_PROXIES[holding.ticker])
+          .map((holding) => holding.ticker);
 
-        const twelveDataSymbols = allLiveSymbols.filter((symbol) =>
-          TWELVE_DATA_SYMBOLS.has(symbol)
-        );
+        const proxySymbols = mutualFundSymbols.map((ticker) => FUND_PROXIES[ticker]);
 
-        const unknownSymbols = allLiveSymbols.filter(
-          (symbol) =>
-            !FINNHUB_SYMBOLS.has(symbol) &&
-            !TWELVE_DATA_SYMBOLS.has(symbol)
-        );
+        // Direct holdings and shared mutual-fund proxies are deduplicated here.
+        const etfSymbols = [...new Set([...directEtfSymbols, ...proxySymbols])];
 
-        const errors = [];
-        let loadedCount = 0;
-
-        const [finnhubResults, twelveDataResults] = await Promise.all([
-          Promise.allSettled(
-            finnhubSymbols.map((symbol) => fetchFinnhubQuote(symbol))
-          ),
-          Promise.allSettled(
-            twelveDataSymbols.map((symbol) => fetchTwelveDataQuote(symbol))
-          )
+        const [etfResults, navResults] = await Promise.all([
+          Promise.allSettled(etfSymbols.map(fetchFinnhubQuote)),
+          Promise.allSettled(mutualFundSymbols.map(fetchTwelveDataPriorNav))
         ]);
 
-        for (const result of finnhubResults) {
+        const errors = [];
+        let loadedEtfs = 0;
+        let loadedNavs = 0;
+
+        for (const result of etfResults) {
           if (result.status === "fulfilled") {
             const [symbol, quote] = result.value;
-            quoteMap[symbol] = quote;
-            loadedCount += 1;
+            etfQuoteMap[symbol] = quote;
+            loadedEtfs += 1;
           } else {
-            errors.push(
-              result.reason?.message || "Unknown Finnhub error"
-            );
+            errors.push(result.reason?.message || "Unknown Finnhub error");
           }
         }
 
-        for (const result of twelveDataResults) {
+        for (const result of navResults) {
           if (result.status === "fulfilled") {
-            const [symbol, quote] = result.value;
-            quoteMap[symbol] = quote;
-            loadedCount += 1;
+            const [symbol, nav] = result.value;
+            mutualFundNavMap[symbol] = nav;
+            loadedNavs += 1;
           } else {
-            errors.push(
-              result.reason?.message || "Unknown Twelve Data error"
-            );
+            errors.push(result.reason?.message || "Unknown Twelve Data error");
           }
-        }
-
-        for (const symbol of unknownSymbols) {
-          errors.push(`${symbol}: no provider configured`);
         }
 
         render();
-
-        lastUpdatedElement.textContent =
-          `Last updated: ${new Date().toLocaleString()}`;
-
-        const manualCount = holdings.filter(
-          (holding) => holding.manual
-        ).length;
+        lastUpdatedElement.textContent = `Last updated: ${new Date().toLocaleString()}`;
 
         statusElement.textContent = errors.length
-          ? `Loaded ${loadedCount} of ${allLiveSymbols.length} live symbols. ${errors.join("; ")}`
-          : `Loaded ${loadedCount} live symbols: ${finnhubSymbols.length} from Finnhub and ${twelveDataSymbols.length} from Twelve Data. ${manualCount} manual holding excluded.`;
+          ? `Loaded ${loadedEtfs}/${etfSymbols.length} ETF quotes and ${loadedNavs}/${mutualFundSymbols.length} fund NAVs. ${errors.join("; ")}`
+          : `Loaded ${loadedEtfs} unique ETF quotes and ${loadedNavs} unique fund NAVs.`;
       } catch (error) {
-        statusElement.textContent =
-          `Unexpected error: ${error?.message || String(error)}`;
+        statusElement.textContent = `Unexpected error: ${error?.message || String(error)}`;
       } finally {
         refreshButton.disabled = false;
       }
