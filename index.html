@@ -415,10 +415,10 @@
 
         return `
           <tr>
-            <td class="ticker">
-              ${row.ticker}${estimateBadge}${manualBadge}${unavailableBadge}
-              <div class="fund-note">${row.note}</div>
-            </td>
+           <td class="ticker">
+  ${row.ticker}${estimateBadge}${manualBadge}${unavailableBadge}
+  <div class="fund-note">${row.name} · ${row.note}</div>
+</td>
             <td class="${valueClass(row.dayPercent)}">${formatPercent(row.dayPercent)}</td>
             <td class="${valueClass(row.todayGain)}">${formatSignedCurrency(row.todayGain)}</td>
             <td>${Number.isFinite(row.shares) ? numberFormatter.format(row.shares) : "—"}</td>
